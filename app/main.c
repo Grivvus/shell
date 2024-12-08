@@ -1,25 +1,43 @@
-#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-int main() {
-    int num_of_builins = 2;
-    char builtins[2][4] = {"echo", "exit"};
+unsigned long read(char* input_buffer, int buffer_size);
+void evaluate(char* command, int len);
+void print(char* result);
+
+unsigned long read(char* input_buffer, int buffer_size){
     printf("$ ");
     fflush(stdout);
-    
-    char input[100];
-    fgets(input, 100, stdin);
-    int len = strlen(input);
-    input[len-1] = '\0';
-    for (int i = 0; i < num_of_builins; i++){
-        if (strcmp((char*)input, (char*)builtins[i]) == 0){
-            printf("do something\n");
-            exit(0);
+    fgets(input_buffer, buffer_size, stdin);
+    return strlen(input_buffer);
+}
+
+void evaluate(char* command, int len){
+    command[len - 1] = '\0';
+    char builtins[2][4] = {"echo", "exit"};
+    int num_of_builtins = 2;
+    char result[100];
+    for (int i = 0; i < num_of_builtins; i++){
+        if (strcmp(builtins[i], command) == 0){
+            print(builtins[i]);
+            return;
         }
     }
+    sprintf(result, "%s: command not found", command);
+    print(result);
+
+}
+
+void print(char* result){
+    printf("%s\n", result);
+}
+
+int main() {
+    char input[100];
+    while (1){
+        read(input, 100);
+        evaluate(input, strlen(input));
+    }
     
-    printf("%s: command not found\n", (char*)input);
-    exit(1);
     return 0;
 }
