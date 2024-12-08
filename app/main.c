@@ -1,9 +1,11 @@
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 unsigned long read(char* input_buffer, int buffer_size);
 void evaluate(char* command, int len);
 void print(char* result);
+
 
 unsigned long read(char* input_buffer, int buffer_size){
     printf("$ ");
@@ -14,12 +16,17 @@ unsigned long read(char* input_buffer, int buffer_size){
 
 void evaluate(char* command, int len){
     command[len - 1] = '\0';
-    char builtins[2][4] = {"echo", "exit"};
+    char* tokens = strtok(command, " ");
+    char builtins[2][5] = {"echo", "exit"};
     int num_of_builtins = 2;
     char result[100];
     for (int i = 0; i < num_of_builtins; i++){
-        if (strcmp(builtins[i], command) == 0){
-            print(builtins[i]);
+        if (strcmp(builtins[i], tokens) == 0){
+            if (i == 1){
+                char* exit_code = tokens + 5;
+                int code = atoi(exit_code);
+                exit(code);
+            }
             return;
         }
     }
