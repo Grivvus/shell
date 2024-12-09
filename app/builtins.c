@@ -21,3 +21,15 @@ void sh_exit(char* input, int len){
     int code = atoi(input + 5);
     exit(code);
 }
+
+void sh_type(char* input, int len, char* builtins, int num_of_builtins){
+    input += 5;
+    for (int i = 0; i < num_of_builtins; i++){
+        if (strcmp(builtins, input) == 0){
+            printf("%s is a shell builtin\n", input);
+            return;
+        }
+        builtins += strlen(builtins) + 1;
+    }
+    printf("%s: not found\n", input);
+}

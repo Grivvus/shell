@@ -18,8 +18,8 @@ unsigned long read(char* input_buffer, int buffer_size){
 void evaluate(char* command, int len){
     command[len - 1] = '\0';
     char* tokens = strtok(command, " ");
-    char builtins[2][5] = {"exit", "echo"};
-    int num_of_builtins = 2;
+    char builtins[3][5] = {"exit", "echo", "type"};
+    int num_of_builtins = sizeof(builtins) / sizeof(builtins[0]);
     char result[100];
     for (int i = 0; i < num_of_builtins; i++){
         if (strcmp(builtins[i], tokens) == 0){
@@ -27,6 +27,8 @@ void evaluate(char* command, int len){
                 sh_exit(tokens, len - 1);
             } else if (i == 1){
                 sh_echo(tokens, len - 1);
+            } else if (i == 2){
+                sh_type(tokens, len - 1, (char*)builtins, num_of_builtins);
             }
             return;
         }
