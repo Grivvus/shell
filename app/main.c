@@ -1,10 +1,15 @@
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "builtins.h"
 
+/*#ifndef __LOG*/
+/*    #define __LOG*/
+/*#endif*/
+
 unsigned long read(char* input_buffer, int buffer_size);
-void evaluate(char* command, int len);
+int evaluate(char* command, int len);
 void print(char* result);
 
 
@@ -15,27 +20,37 @@ unsigned long read(char* input_buffer, int buffer_size){
     return strlen(input_buffer);
 }
 
-void evaluate(char* command, int len){
+int evaluate(char* command, int len){
+    char* command_cp = malloc(len);
     command[len - 1] = '\0';
+    command_cp = strcpy(command_cp, command);
+    #ifdef __LOG
+        printf("%s\n", command_cp);
+    #endif
     char* tokens = strtok(command, " ");
-    char builtins[3][5] = {"exit", "echo", "type"};
+    char* builtins[] = {"exit", "echo", "type"};
     int num_of_builtins = sizeof(builtins) / sizeof(builtins[0]);
     char result[100];
     for (int i = 0; i < num_of_builtins; i++){
         if (strcmp(builtins[i], tokens) == 0){
             if (i == 0){
-                sh_exit(tokens, len - 1);
+                sh_exit(tokens);
             } else if (i == 1){
                 sh_echo(tokens, len - 1);
             } else if (i == 2){
-                sh_type(tokens, len - 1, (char*)builtins, num_of_builtins);
+                sh_type(tokens, builtins, num_of_builtins);
             }
-            return;
+            return 0;
         }
     }
-    sprintf(result, "%s: command not found", command);
-    print(result);
-
+    int code = try_execute(command_cp);
+    if (code == -3){
+        sprintf(result, "%s: command not found", command);
+        print(result);
+    } else {
+        return code;
+    }
+    return 0;
 }
 
 void print(char* result){
@@ -45,7 +60,10 @@ void print(char* result){
 int main() {
     char input[100];
     while (1){
-        read(input, 100);
+        unsigned long len = read(input, 100);
+        #ifdef __LOG
+            printf("[INFO] input len: %u\n", (unsigned)len);
+        #endif
         evaluate(input, strlen(input));
     }
     
