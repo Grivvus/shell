@@ -44,6 +44,15 @@ void sh_type(char* input, char** builtins, int num_of_builtins){
     }
 }
 
+void sh_pwd(void){
+    char path[1024];
+    if (getcwd(path, sizeof(path)) != NULL){
+        printf("%s\n", path);
+    } else {
+        perror("getcwd");
+    }
+}
+
 int parse_path(char* path){
     char* path_r = getenv("PATH");
     strcpy(path, path_r);
