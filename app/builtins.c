@@ -53,6 +53,30 @@ void sh_pwd(void){
     }
 }
 
+int sh_cd(char* dest){
+    if (dest[0] == '/'){
+        // absolute
+        int res = chdir(dest);
+        if (res != 0){
+            printf("cd: %s: No such file or directory\n", dest);
+        }
+    } else {
+        // relative
+        exit(1);
+    }
+    return 0;
+}
+
+int relative_to_absolute(char* relative, char* buffer, int buffer_size){
+    char* current_dir = getcwd(buffer, buffer_size);
+    if (current_dir == NULL){
+        perror("getcwd");
+    }
+    if (strcmp(relative, ".") == 0){
+
+    }
+}
+
 int parse_path(char* path){
     char* path_r = getenv("PATH");
     strcpy(path, path_r);

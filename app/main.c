@@ -28,7 +28,7 @@ int evaluate(char* command, int len){
         printf("%s\n", command_cp);
     #endif
     char* tokens = strtok(command, " ");
-    char* builtins[] = {"exit", "echo", "type", "pwd"};
+    char* builtins[] = {"exit", "echo", "type", "pwd", "cd"};
     int num_of_builtins = sizeof(builtins) / sizeof(builtins[0]);
     char result[100];
     for (int i = 0; i < num_of_builtins; i++){
@@ -41,6 +41,8 @@ int evaluate(char* command, int len){
                 sh_type(tokens, builtins, num_of_builtins);
             } else if (i == 3){
                 sh_pwd();
+            } else if (i == 4){
+                sh_cd(tokens + 3);
             }
             return 0;
         }
