@@ -62,7 +62,14 @@ int sh_cd(char* dest){
         }
     } else {
         // relative
-        exit(1);
+        char buffer[512];
+        int rel_to_abs = relative_to_absolute(dest, buffer, 512);
+        if (rel_to_abs == -1){
+            printf("[ERROR] unexpected error while transforming relative path to absolute\n");
+            exit(-1);
+        } else {
+            sh_cd(buffer);
+        }
     }
     return 0;
 }
@@ -73,8 +80,18 @@ int relative_to_absolute(char* relative, char* buffer, int buffer_size){
         perror("getcwd");
     }
     if (strcmp(relative, ".") == 0){
-
+        return strlen(current_dir);
+    } else {
+        int len = strlen(relative);
+        int already_in_buf = strlen(current_dir);
+        *(buffer + already_in_buf) = '/';
+        for (int i = 1; i < len + 1; i++){
+            *(buffer + i + already_in_buf) = *(relative + i - 1);
+        }
+        *(buffer + already_in_buf + len + 1) = '\0';
+        return already_in_buf + len - 1;
     }
+    return -1;
 }
 
 int parse_path(char* path){
