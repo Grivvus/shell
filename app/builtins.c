@@ -60,6 +60,9 @@ int sh_cd(char* dest){
         if (res != 0){
             printf("cd: %s: No such file or directory\n", dest);
         }
+    } else if (strcmp(dest, "~") == 0){
+        char* home = getenv("HOME");
+        int res = chdir(home);
     } else {
         // relative
         char buffer[512];
