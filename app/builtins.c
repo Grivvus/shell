@@ -4,212 +4,96 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "builtins.h"
 
-/*#define __LOG*/
+#include "include/builtins.h"
+#include "include/command.h"
+#include "include/state.h"
+#include "include/utils.h"
 
-void sh_echo(char* input, int len){
-    input += 5;
-    int i = 5;
-    while (i < len){
-        printf("%s", input);
-        i += strlen(input) + 1;
-        input += (strlen(input) + 1);
-        if (i < len){
-            printf(" ");
-        }
+void sh_echo(command_t command){
+    args_t *arg = command.args->next;
+    while (arg != NULL){
+        printf("%s ", arg->arg);
+        arg = arg->next;
     }
     printf("\n");
 }
 
-void sh_exit(char* input){
-    int code = atoi(input + 5);
-    exit(code);
-}
-
-void sh_type(char* input, char** builtins, int num_of_builtins){
-    input += 5;
-    for (int i = 0; i < num_of_builtins; i++){
-        if (strcmp(builtins[i], input) == 0){
-            printf("%s is a shell builtin\n", input);
-            return;
-        }
+void sh_exit(command_t command){
+    if (command.args->next == NULL){
+        exit(0);
     }
-    char* absolute_executable = find_executable(input);
-    if (absolute_executable != NULL){
-        printf("%s is %s\n", input, absolute_executable);
-        free(absolute_executable);
+
+    int exit_code = atoi(command.args->next->arg);
+    if (*command.args->next->arg == '0' || exit_code != 0){
+        exit(exit_code);
     } else {
-        printf("%s: not found\n", input);
+        fprintf(stderr, "exit code is not an integer\n");
     }
 }
 
-void sh_pwd(void){
-    char path[1024];
-    if (getcwd(path, sizeof(path)) != NULL){
-        printf("%s\n", path);
+void sh_type(command_t command){
+    if (command.args->next == NULL){
+        fprintf(stderr, "no name for type\n");
+        return;
+    }
+    char* name = command.args->next->arg;
+    if (in_builtins(name)){
+        printf("%s is a shell builtin\n", name);
+        return;
+    }
+    char* abs_exec_path = find_executable(name);
+    if (abs_exec_path != NULL){
+        printf("%s is %s\n", name, abs_exec_path);
     } else {
-        perror("getcwd");
+        fprintf(stderr, "%s not found\n", name);
     }
+    free(abs_exec_path);
 }
 
-int sh_cd(char* dest){
+void sh_pwd(command_t command){
+    char buf[256] = {0};
+    getcwd(buf, 256);
+    printf("%s\n", buf);
+    /*state_t* state = get_state();*/
+    /*printf("%s\n", state->curr_dir);*/
+}
+
+void sh_cd(command_t command){
+    char* dest;
+    char* new_CWD = malloc(sizeof(char) * 512);
+    state_t* state = get_state();
+    free(state->curr_dir);
+    state->curr_dir = new_CWD;
+    if (command.args->next != NULL){
+        dest = command.args->next->arg;
+    } else {
+        dest = "~";
+    }
     if (dest[0] == '/'){
         // absolute
         int res = chdir(dest);
+        memcpy(new_CWD, dest, strlen(dest) + 1);
         if (res != 0){
             printf("cd: %s: No such file or directory\n", dest);
         }
     } else if (strcmp(dest, "~") == 0){
-        char* home = getenv("HOME");
-        int res = chdir(home);
+        int res = chdir(state->HOME_dir);
+        /* allocate strlen + '\0' */
+        memcpy(state->curr_dir, state->HOME_dir, strlen(state->HOME_dir) + 1);
     } else {
         // relative
-        char buffer[512];
+        char* buffer = new_CWD;
         int rel_to_abs = relative_to_absolute(dest, buffer, 512);
         if (rel_to_abs == -1){
             printf("[ERROR] unexpected error while transforming relative path to absolute\n");
             exit(-1);
-        } else {
-            sh_cd(buffer);
+        }
+        int res = chdir(buffer);
+        if (res != 0){
+            printf("cd: %s: No such file or directory\n", dest);
+            printf("%s\n", buffer);
         }
     }
-    return 0;
 }
 
-int relative_to_absolute(char* relative, char* buffer, int buffer_size){
-    char* current_dir = getcwd(buffer, buffer_size);
-    if (current_dir == NULL){
-        perror("getcwd");
-    }
-    if (strcmp(relative, ".") == 0){
-        return strlen(current_dir);
-    } else {
-        int len = strlen(relative);
-        int already_in_buf = strlen(current_dir);
-        *(buffer + already_in_buf) = '/';
-        for (int i = 1; i < len + 1; i++){
-            *(buffer + i + already_in_buf) = *(relative + i - 1);
-        }
-        *(buffer + already_in_buf + len + 1) = '\0';
-        return already_in_buf + len - 1;
-    }
-    return -1;
-}
-
-int parse_path(char* path){
-    char* path_r = getenv("PATH");
-    strcpy(path, path_r);
-    int path_len = strlen(path);
-    for (int i = 0; i < path_len; i++){
-        if (*(path + i) == ':'){
-            *(path + i) = '\0';
-        }
-    }
-    return path_len;
-}
-
-char* find_executable(char* executable_name){
-    int executable_path_len;
-    int executable_name_len = strlen(executable_name);
-    char* path = (char*)malloc(1000);
-    void* path_clear = path;
-    int path_len = parse_path(path);
-
-    int i = 0;
-    while (i < path_len){
-        if (search_directory(executable_name, path) == 1){
-            executable_path_len = strlen(path);
-            char* full_path = (char*)malloc(executable_name_len + executable_path_len + 2);
-            strcpy(full_path, path);
-            *(full_path + executable_path_len) = '/';
-            for (int j = 0; j < executable_name_len; j++){
-                *(full_path + executable_path_len + j + 1) = *(executable_name + j);
-            }
-            *(full_path + executable_path_len + executable_name_len + 1) = '\0';
-            free(path_clear);
-            return full_path;
-        }
-        int incr = strlen(path);
-        path += (incr + 1);
-        i += (incr + 1);
-    }
-    free(path_clear);
-    return NULL;
-}
-
-int search_directory(char* executable_name, char* dir_name){
-    DIR* dir = opendir(dir_name);
-    struct dirent* entry;
-    if (dir == NULL){
-        return -1;
-    }
-    while ((entry = readdir(dir)) != NULL){
-        if (strcmp(entry->d_name, executable_name) == 0){
-            closedir(dir);
-            return 1;
-        }
-    }
-    closedir(dir);
-    return 0;
-}
-
-int try_execute(char *command){
-    int exec_code = 0;
-    int argc;
-    char** args = prepair_args(command, &argc);
-    char* absolute_path = find_executable(*args);
-    if (absolute_path == NULL){
-        return -3;
-    }
-    *args = absolute_path;
-
-    int pid = fork();
-    if (pid == 0){
-        // it's awful, 2  random bytes coming from somewhere
-        *(*(args + 1) + strlen(*(args + 1)) - 2) = '\0';
-        exec_code = execv(*args, args);
-        perror("execv");
-        exit(1);
-    } else if (pid < 0){
-        perror("fork");
-    } else {
-        int status;
-        waitpid(pid, &status, 0);
-    }
-
-    free(command);
-    clear_after_execute(args);
-    return exec_code;
-}
-
-char** prepair_args(char* command, int* argc){
-    int len = strlen(command);
-    int cnt = 0;
-    char* args_text = malloc(len);
-    for (int i = 0; i < len; i++){
-        *(args_text + i) = *(command + i);
-        if (*(args_text + i) == 32){
-            cnt++;
-            *(args_text + i) = '\0';
-        }
-    }
-    *argc = cnt + 1;
-    char** args_ptr = malloc(sizeof(char*) * (cnt + 2));
-    for (int i = 0; i < (cnt + 1); i++){
-        *(args_ptr + i) = args_text;
-        args_text += (strlen(args_text) + 1);
-    }
-    *(args_ptr + cnt + 1) = (char*)0;
-
-    return args_ptr;
-}
-
-int clear_after_execute(char** ptr){
-    #ifdef __LOG
-        printf("[INFO] releasing resourses\n");
-    #endif
-    free(*ptr);
-    free(ptr);
-    return 0;
-}
