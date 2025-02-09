@@ -141,7 +141,7 @@ MERGED:
             offset++;
         }
     }
-    if (*(src + offset) == '\'' && *(src + offset + 1) == '\''){
+    if (*(src + offset) == '"' && *(src + offset + 1) == '"'){
         offset += 2;
         decrease += 2;
         goto MERGED;
