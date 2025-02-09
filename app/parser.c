@@ -69,6 +69,9 @@ int next_token(char* src, int len, int offset, char* buffer, int buffer_size) {
                *(src + offset) != ' ') {
             /* на данный момент не учитывает экранирование через \ без кавычек
              */
+            if (*(src + offset) == '\\'){
+                offset ++;
+            }
             *(buffer + i) = *(src + offset);
             i++;
             offset++;
@@ -133,9 +136,6 @@ MERGED:
             *(buffer + offset - decrease) = '`';
             offset += 2;
             decrease++;
-        } else if (*(src + offset) == '\\') {
-            fprintf(stderr, "syntax error: wrong usage of \\ \n");
-            exit(-3);
         } else {
             *(buffer + offset - decrease) = *(src + offset);
             offset++;
